@@ -1,9 +1,9 @@
-// 定义版本变量，优先使用外部传入的 version 属性，否则使用默认值
-def buildVersion = project.hasProperty('version') ? project.property('version') : '1.0-SNAPSHOT'
-
 plugins {
     id 'java'
 }
+
+// 定义版本变量，优先使用外部传入的 version 属性，否则使用默认值
+def buildVersion = project.hasProperty('version') ? project.property('version') : '1.0-SNAPSHOT'
 
 group = 'byd.cxkcxkckx'
 version = buildVersion  // 使用上面定义的版本变量
