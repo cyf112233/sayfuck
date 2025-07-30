@@ -26,8 +26,9 @@
 
 ## 配置详解
 
-``` config.yml 示例配置 ```
+config.yml 示例配置
 
+```
 # OpenAI API配置
 openai-api-key: "your-api-key-here"
 api-base-url: "https://allgpt.xianyuw.cn"
