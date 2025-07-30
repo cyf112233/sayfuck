@@ -44,14 +44,14 @@ public class ChatListener implements Listener {
                     switch (result) {
                         case 2:
                             plugin.addWarning(player.getUniqueId());
-                            String warningMsg = plugin.getConfig().getString("warnings.message", "&c你收到了一个警告！")
+                            String warningMsg = plugin.getConfig().getString("warnings.message", "&c你在游戏中的用语不当，警告一次！")
                                     .replace("%count%", String.valueOf(plugin.getWarningCount(player.getUniqueId())))
                                     .replace('&', '§');
                             player.sendMessage(warningMsg);
                             break;
                         case 3:
                             plugin.addSevereWarning(player.getUniqueId());
-                            String severeMsg = plugin.getConfig().getString("severe-warnings.message", "&4你收到了一个严重警告！")
+                            String severeMsg = plugin.getConfig().getString("severe-warnings.message", "&4你发了不该发的，严重警告一次！")
                                     .replace("%count%", String.valueOf(plugin.getSevereWarningCount(player.getUniqueId())))
                                     .replace('&', '§');
                             player.sendMessage(severeMsg);
