@@ -1,9 +1,12 @@
+// 定义版本变量，优先使用外部传入的 version 属性，否则使用默认值
+def buildVersion = project.hasProperty('version') ? project.property('version') : '1.0-SNAPSHOT'
+
 plugins {
     id 'java'
 }
 
 group = 'byd.cxkcxkckx'
-version = '1.0-SNAPSHOT'
+version = buildVersion  // 使用上面定义的版本变量
 
 repositories {
     mavenCentral()
@@ -41,7 +44,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 processResources {
-    def props = [version: version]
+    def props = [version: version]  // 这里会自动使用上面定义的 version
     inputs.properties props
     filteringCharset 'UTF-8'
     filesMatching('plugin.yml') {
