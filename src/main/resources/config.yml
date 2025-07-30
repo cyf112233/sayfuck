@@ -8,11 +8,11 @@ message-template: "游戏公开聊天：(%s)   你将作为游戏违禁词检测
 warnings:
   threshold: 10
   command: "kick %player% 你已经收到了太多警告"
-  message: "&c你收到了一个警告！当前警告次数：%count%"
+  message: "&c你在游戏中的用语不当，警告一次！当前警告次数：%count%"
 severe-warnings:
   threshold: 2
   command: "ban %player% 你已经收到了太多严重警告"
-  message: "&4你收到了一个严重警告！当前严重警告次数：%count%"
+  message: "&4你在游戏中的用语不当，严重警告一次！当前严重警告次数：%count%"
 
 # 管理员设置
 admin:
