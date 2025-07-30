@@ -12,7 +12,7 @@ warnings:
 severe-warnings:
   threshold: 2
   command: "ban %player% 你已经收到了太多严重警告"
-  message: "&4你在游戏中的用语不当，严重警告一次！当前严重警告次数：%count%"
+  message: "&4你发了不该发的，严重警告一次！当前严重警告次数：%count%"
 
 # 管理员设置
 admin:
