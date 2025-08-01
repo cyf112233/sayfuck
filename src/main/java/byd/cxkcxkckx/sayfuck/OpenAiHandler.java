@@ -10,6 +10,8 @@ import java.net.HttpURLConnection;  // 添加HttpURLConnection导入
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Scanner;
 
 public class OpenAiHandler {
@@ -115,13 +117,8 @@ public class OpenAiHandler {
         checkAndTrimHistory();
         
         plugin.debug("正在发送请求到: " + baseUrl + "/v1/chat/completions");
-        URL url = new URL(baseUrl + "/v1/chat/completions");  // 改为v1接口
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Authorization", "Bearer " + apiKey);
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setDoOutput(true);
-
+        URL url = new URL(baseUrl + "/v1/chat/completions");
+        
         String formattedMessage = String.format(messageTemplate, message);
         plugin.debug("发送的消息内容: " + formattedMessage);
         
@@ -150,6 +147,12 @@ public class OpenAiHandler {
             }""", model, messagesJson.toString());
 
         plugin.debug("发送的JSON: " + jsonInput);
+
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setDoOutput(true);
 
         try (OutputStream os = conn.getOutputStream()) {
             byte[] input = jsonInput.getBytes(StandardCharsets.UTF_8);
