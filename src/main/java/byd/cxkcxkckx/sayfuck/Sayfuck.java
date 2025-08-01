@@ -47,7 +47,7 @@ public final class Sayfuck extends JavaPlugin {
         // 保存默认配置
         saveDefaultConfig();
         openAiApiKey = getConfig().getString("openai-api-key", "your-api-key");
-        apiBaseUrl = getConfig().getString("api-base-url", "https://allgpt.xianyuw.cn");
+        apiBaseUrl = getConfig().getString("api-base-url", "https://api.openai.com");
         model = getConfig().getString("model", "gpt-3.5-turbo");
         messageTemplate = getConfig().getString("message-template",
             "游戏公开聊天：(%s)   " +
