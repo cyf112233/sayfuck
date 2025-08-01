@@ -38,6 +38,7 @@ public class OpenAiHandler {
 
     private void loadHistory() {
         if (!historyFile.exists()) {
+            messageHistory.clear();
             messageHistory.add(new Message("system", "你是一个游戏违禁词检测工具。通过回复1，违规回复2，违法回复3。只需要回复对应数字，不需要其他任何解释。"));
             saveHistory();
             return;
@@ -46,14 +47,23 @@ public class OpenAiHandler {
         try (Reader reader = new FileReader(historyFile, StandardCharsets.UTF_8)) {
             Type type = new TypeToken<ArrayList<Message>>(){}.getType();
             List<Message> loaded = gson.fromJson(reader, type);
-            if (loaded != null && !loaded.isEmpty()) {
+            if (loaded != null) {
                 messageHistory.clear();
                 messageHistory.addAll(loaded);
                 plugin.debug("已加载 " + messageHistory.size() + " 条历史消息");
+            } else {
+                // 如果加载失败，重新初始化
+                messageHistory.clear();
+                messageHistory.add(new Message("system", "你是一个游戏违禁词检测工具。通过回复1，违规回复2，违法回复3。只需要回复对应数字，不需要其他任何解释。"));
+                saveHistory();
             }
         } catch (Exception e) {
             plugin.debug("加载历史记录失败: " + e.getMessage());
             e.printStackTrace();
+            // 加载失败时重新初始化
+            messageHistory.clear();
+            messageHistory.add(new Message("system", "你是一个游戏违禁词检测工具。通过回复1，违规回复2，违法回复3。只需要回复对应数字，不需要其他任何解释。"));
+            saveHistory();
         }
     }
 
@@ -68,17 +78,42 @@ public class OpenAiHandler {
     }
 
     private void checkAndTrimHistory() {
+        // 始终保留系统消息
         if (messageHistory.size() > maxHistory) {
-            plugin.debug("历史记录超过" + maxHistory + "条，自动清空所有历史记录...");
-            Message systemMessage = messageHistory.get(0); // 保存系统消息
+            plugin.debug("历史记录即将超过限制，当前数量: " + messageHistory.size() + ", 最大限制: " + maxHistory);
+            
+            // 保存系统消息
+            Message systemMessage = messageHistory.get(0);
+            
+            // 保留最近的消息，而不是全部清空
+            // 计算需要保留多少条最新消息
+            int keepCount = maxHistory / 2; // 保留一半的容量给新消息
+            
+            // 创建新的历史记录列表
+            List<Message> newHistory = new ArrayList<>();
+            newHistory.add(systemMessage); // 首先添加系统消息
+            
+            // 添加最近的消息
+            int startIndex = Math.max(1, messageHistory.size() - keepCount);
+            for (int i = startIndex; i < messageHistory.size(); i++) {
+                newHistory.add(messageHistory.get(i));
+            }
+            
+            // 更新历史记录
             messageHistory.clear();
-            messageHistory.add(systemMessage); // 重新添加系统消息
-            plugin.debug("历史记录已自动清空，仅保留系统提示，准备开始新的对话");
+            messageHistory.addAll(newHistory);
+            
+            plugin.debug("已清理历史记录，保留系统消息和最近 " + keepCount + " 条消息，当前历史记录数: " + messageHistory.size());
+            
+            // 保存更新后的历史记录
             saveHistory();
         }
     }
 
     public int analyzeMessage(String message) throws Exception {
+        // 在添加新消息前检查历史记录大小
+        checkAndTrimHistory();
+        
         plugin.debug("正在发送请求到: " + baseUrl + "/v1/chat/completions");
         URL url = new URL(baseUrl + "/v1/chat/completions");  // 改为v1接口
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -125,12 +160,15 @@ public class OpenAiHandler {
             String response = scanner.useDelimiter("\\A").next();
             plugin.debug("收到API响应: " + response);
             
-            // 解析响应并更新历史记录
             String content = extractContent(response);
             if (content != null) {
+                // 添加新的消息到历史记录
                 messageHistory.add(new Message("user", formattedMessage));
                 messageHistory.add(new Message("assistant", content));
-                checkAndTrimHistory(); // 检查并清理历史记录
+                
+                // 保存历史记录
+                saveHistory();
+                plugin.debug("已添加新对话，当前历史记录数: " + messageHistory.size());
             }
             
             return parseContent(content);

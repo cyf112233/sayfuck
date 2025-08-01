@@ -9,6 +9,16 @@ import com.google.gson.GsonBuilder;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import java.text.SimpleDateFormat;
+import java.util.Collections;
+import java.util.Date;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+import java.util.Calendar;
+import org.bukkit.permissions.Permission;
+import org.bukkit.permissions.PermissionAttachment;
+import org.bukkit.permissions.PermissionDefault;
 
 public final class Sayfuck extends JavaPlugin {
     private Map<UUID, Integer> warnings;
@@ -18,12 +28,18 @@ public final class Sayfuck extends JavaPlugin {
     private String model;
     private String messageTemplate;
     private File warningsFile;
+    private File logsFolder;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private OpenAiHandler openAiHandler;
     private boolean debug;
+    private File currentLogFile;
+    private long nextLogRotation;
 
     @Override
     public void onEnable() {
+        // 注册权限节点
+        registerPermissions();
+        
         // 初始化警告系统
         warnings = new HashMap<>();
         severeWarnings = new HashMap<>();
@@ -53,6 +69,18 @@ public final class Sayfuck extends JavaPlugin {
         warningsFile = new File(getDataFolder(), "warnings.json");
         loadWarnings();
 
+        // 初始化日志文件夹
+        logsFolder = new File(getDataFolder(), "logs");
+        if (!logsFolder.exists()) {
+            logsFolder.mkdirs();
+        }
+
+        // 初始化日志系统
+        initializeLogging();
+        
+        // 启动日志轮换任务
+        startLogRotationTask();
+        
         debug = getConfig().getBoolean("debug", false);
         getLogger().info("调试模式: " + (debug ? "开启" : "关闭"));
     }
@@ -62,6 +90,31 @@ public final class Sayfuck extends JavaPlugin {
         saveWarnings(); // 保存警告数据
         // OpenAiHandler的历史记录已经在每次对话后自动保存
         getLogger().info("插件已关闭，所有数据已保存");
+    }
+
+    private void registerPermissions() {
+        try {
+            // 注册bypass权限节点
+            Permission bypassPerm = new Permission(
+                "sayfuck.bypass",
+                "允许跳过聊天检测",
+                PermissionDefault.OP
+            );
+            
+            // 如果权限还未注册，则注册它
+            if (getServer().getPluginManager().getPermission("sayfuck.bypass") == null) {
+                getServer().getPluginManager().addPermission(bypassPerm);
+                debug("已注册权限节点: sayfuck.bypass");
+            }
+            
+            // 确保OP默认拥有此权限
+            bypassPerm.setDefault(PermissionDefault.OP);
+            
+            debug("权限节点注册完成: sayfuck.bypass (默认OP拥有)");
+        } catch (Exception e) {
+            getLogger().warning("注册权限节点时出错: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void loadWarnings() {
@@ -175,6 +228,96 @@ public final class Sayfuck extends JavaPlugin {
                     e.printStackTrace();
                 }
             });
+        }
+    }
+
+    public void logViolation(Player player, String message, int level, int count, String command) {
+        if (!getConfig().getBoolean("logging.enabled", true)) {
+            return;
+        }
+
+        String dateFormat = getConfig().getString("logging.date-format", "yyyy-MM-dd HH:mm:ss");
+        String format = getConfig().getString("logging.format");
+        
+        try {
+            // 确保latest.log存在
+            if (!currentLogFile.exists()) {
+                currentLogFile.createNewFile();
+            }
+            
+            // 格式化日志内容
+            String logEntry = format
+                .replace("%date%", new SimpleDateFormat(dateFormat).format(new Date()))
+                .replace("%player%", player.getName())
+                .replace("%message%", message)
+                .replace("%level%", String.valueOf(level))
+                .replace("%count%", String.valueOf(count))
+                .replace("%command%", command)
+                + System.lineSeparator();
+            
+            // 追加写入日志
+            Files.write(currentLogFile.toPath(), 
+                       Collections.singletonList(logEntry), 
+                       StandardCharsets.UTF_8,
+                       StandardOpenOption.APPEND);
+                       
+            debug("已记录违规日志: " + logEntry);
+        } catch (IOException e) {
+            getLogger().warning("无法写入日志文件: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void initializeLogging() {
+        if (!logsFolder.exists()) {
+            logsFolder.mkdirs();
+        }
+        
+        currentLogFile = new File(logsFolder, "latest.log");
+        updateNextRotationTime();
+    }
+
+    private void updateNextRotationTime() {
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_MONTH, 1);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        nextLogRotation = cal.getTimeInMillis();
+    }
+
+    private void startLogRotationTask() {
+        Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime >= nextLogRotation) {
+                rotateLogFile();
+                updateNextRotationTime();
+            }
+        }, 20L * 60, 20L * 60); // 每分钟检查一次
+    }
+
+    private void rotateLogFile() {
+        if (currentLogFile.exists()) {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            String newFileName = dateFormat.format(new Date(nextLogRotation - 24 * 60 * 60 * 1000)) + ".log";
+            File newFile = new File(logsFolder, newFileName);
+            
+            try {
+                // 如果已存在同名文件，先备份
+                if (newFile.exists()) {
+                    int i = 1;
+                    while (new File(logsFolder, newFileName.replace(".log", "-" + i + ".log")).exists()) {
+                        i++;
+                    }
+                    newFile = new File(logsFolder, newFileName.replace(".log", "-" + i + ".log"));
+                }
+                
+                Files.move(currentLogFile.toPath(), newFile.toPath());
+                debug("日志文件已轮换: " + currentLogFile.getName() + " -> " + newFile.getName());
+            } catch (IOException e) {
+                getLogger().warning("轮换日志文件失败: " + e.getMessage());
+            }
         }
     }
 

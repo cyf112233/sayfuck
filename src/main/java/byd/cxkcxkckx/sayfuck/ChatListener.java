@@ -17,14 +17,14 @@ public class ChatListener implements Listener {
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         final Player player = event.getPlayer();
         
-        // 检查是否启用管理员豁免和玩家是否是OP
-        boolean isExempt = plugin.getConfig().getBoolean("admin.exempt", true) && player.isOp();
+        // 检查是否启用管理员豁免和玩家是否有bypass权限
+        boolean isExempt = plugin.getConfig().getBoolean("admin.exempt", true) 
+            && player.hasPermission("sayfuck.bypass");
         if (isExempt) {
-            plugin.debug("玩家 " + player.getName() + " 是管理员(OP)且豁免已开启，跳过所有检查");
-            return;  // 直接返回，不进行任何后续处理
+            plugin.debug("玩家 " + player.getName() + " 有bypass权限且豁免已开启，跳过所有检查");
+            return;
         }
 
-        // 不阻塞聊天消息，直接异步处理AI检测
         final String message = event.getMessage();
         
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
@@ -33,28 +33,32 @@ public class ChatListener implements Listener {
                 int result = plugin.getOpenAiHandler().analyzeMessage(message);
                 plugin.debug("AI返回结果: " + result);
                 
-                // 在主线程中处理警告
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    // 再次检查玩家是否是OP（以防在异步过程中权限发生变化）
-                    if (plugin.getConfig().getBoolean("admin.exempt", true) && player.isOp()) {
-                        plugin.debug("玩家 " + player.getName() + " 是管理员(OP)且豁免已开启，跳过警告");
+                    if (plugin.getConfig().getBoolean("admin.exempt", true) 
+                        && player.hasPermission("sayfuck.bypass")) {
                         return;
                     }
 
                     switch (result) {
                         case 2:
                             plugin.addWarning(player.getUniqueId());
-                            String warningMsg = plugin.getConfig().getString("warnings.message", "&c你在游戏中的用语不当，警告一次！")
+                            String warningMsg = plugin.getConfig().getString("warnings.message")
                                     .replace("%count%", String.valueOf(plugin.getWarningCount(player.getUniqueId())))
                                     .replace('&', '§');
                             player.sendMessage(warningMsg);
+                            // 记录警告日志
+                            plugin.logViolation(player, message, 2, plugin.getWarningCount(player.getUniqueId()), 
+                                plugin.getConfig().getString("warnings.command"));
                             break;
                         case 3:
                             plugin.addSevereWarning(player.getUniqueId());
-                            String severeMsg = plugin.getConfig().getString("severe-warnings.message", "&4你发了不该发的，严重警告一次！")
+                            String severeMsg = plugin.getConfig().getString("severe-warnings.message")
                                     .replace("%count%", String.valueOf(plugin.getSevereWarningCount(player.getUniqueId())))
                                     .replace('&', '§');
                             player.sendMessage(severeMsg);
+                            // 记录严重警告日志
+                            plugin.logViolation(player, message, 3, plugin.getSevereWarningCount(player.getUniqueId()),
+                                plugin.getConfig().getString("severe-warnings.command"));
                             break;
                     }
                 });
