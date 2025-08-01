@@ -46,9 +46,8 @@ public class ChatListener implements Listener {
                                     .replace("%count%", String.valueOf(plugin.getWarningCount(player.getUniqueId())))
                                     .replace('&', '§');
                             player.sendMessage(warningMsg);
-                            // 记录警告日志
-                            plugin.logViolation(player, message, 2, plugin.getWarningCount(player.getUniqueId()), 
-                                plugin.getConfig().getString("warnings.command"));
+                            // 记录普通违规日志(不包含命令)
+                            plugin.logViolation(player, message, 2, plugin.getWarningCount(player.getUniqueId()), "", false);
                             break;
                         case 3:
                             plugin.addSevereWarning(player.getUniqueId());
@@ -56,9 +55,8 @@ public class ChatListener implements Listener {
                                     .replace("%count%", String.valueOf(plugin.getSevereWarningCount(player.getUniqueId())))
                                     .replace('&', '§');
                             player.sendMessage(severeMsg);
-                            // 记录严重警告日志
-                            plugin.logViolation(player, message, 3, plugin.getSevereWarningCount(player.getUniqueId()),
-                                plugin.getConfig().getString("severe-warnings.command"));
+                            // 记录严重违规日志(不包含命令)
+                            plugin.logViolation(player, message, 3, plugin.getSevereWarningCount(player.getUniqueId()), "", false);
                             break;
                     }
                 });

@@ -185,21 +185,26 @@ public final class Sayfuck extends JavaPlugin {
 
         if (warnings.get(playerUuid) >= threshold) {
             Bukkit.getScheduler().runTask(this, () -> {
-                String finalCommand = command.replace("%player%", Bukkit.getPlayer(playerUuid).getName());
-                debug("执行警告命令: " + finalCommand);
-                try {
-                    boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
-                    debug("命令执行" + (success ? "成功" : "失败"));
-                    if (success) {
-                        warnings.put(playerUuid, 0); // 只有在命令执行成功时才清零
-                        saveWarnings();
-                        getLogger().info("已执行警告命令: " + finalCommand);
-                    } else {
-                        getLogger().warning("警告命令执行失败: " + finalCommand);
+                Player player = Bukkit.getPlayer(playerUuid);
+                if (player != null) {
+                    String finalCommand = command.replace("%player%", player.getName());
+                    debug("执行警告命令: " + finalCommand);
+                    try {
+                        boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
+                        debug("命令执行" + (success ? "成功" : "失败"));
+                        if (success) {
+                            warnings.put(playerUuid, 0); // 只有在命令执行成功时才清零
+                            saveWarnings();
+                            getLogger().info("已执行警告命令: " + finalCommand);
+                            // 记录执行命令的日志
+                            logViolation(player, "达到警告阈值", 2, threshold, finalCommand, true);
+                        } else {
+                            getLogger().warning("警告命令执行失败: " + finalCommand);
+                        }
+                    } catch (Exception e) {
+                        debug("命令执行出错: " + e.getMessage());
+                        e.printStackTrace();
                     }
-                } catch (Exception e) {
-                    debug("命令执行出错: " + e.getMessage());
-                    e.printStackTrace();
                 }
             });
         }
@@ -211,33 +216,40 @@ public final class Sayfuck extends JavaPlugin {
 
         if (severeWarnings.get(playerUuid) >= threshold) {
             Bukkit.getScheduler().runTask(this, () -> {
-                String finalCommand = command.replace("%player%", Bukkit.getPlayer(playerUuid).getName());
-                debug("执行严重警告命令: " + finalCommand);
-                try {
-                    boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
-                    debug("命令执行" + (success ? "成功" : "失败"));
-                    if (success) {
-                        severeWarnings.put(playerUuid, 0); // 只有在命令执行成功时才清零
-                        saveWarnings();
-                        getLogger().info("已执行严重警告命令: " + finalCommand);
-                    } else {
-                        getLogger().warning("严重警告命令执行失败: " + finalCommand);
+                Player player = Bukkit.getPlayer(playerUuid);
+                if (player != null) {
+                    String finalCommand = command.replace("%player%", player.getName());
+                    debug("执行严重警告命令: " + finalCommand);
+                    try {
+                        boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
+                        debug("命令执行" + (success ? "成功" : "失败"));
+                        if (success) {
+                            severeWarnings.put(playerUuid, 0); // 只有在命令执行成功时才清零
+                            saveWarnings();
+                            getLogger().info("已执行严重警告命令: " + finalCommand);
+                            // 记录执行命令的日志
+                            logViolation(player, "达到严重警告阈值", 3, threshold, finalCommand, true);
+                        } else {
+                            getLogger().warning("严重警告命令执行失败: " + finalCommand);
+                        }
+                    } catch (Exception e) {
+                        debug("命令执行出错: " + e.getMessage());
+                        e.printStackTrace();
                     }
-                } catch (Exception e) {
-                    debug("命令执行出错: " + e.getMessage());
-                    e.printStackTrace();
                 }
             });
         }
     }
 
-    public void logViolation(Player player, String message, int level, int count, String command) {
+    public void logViolation(Player player, String message, int level, int count, String command, boolean commandExecuted) {
         if (!getConfig().getBoolean("logging.enabled", true)) {
             return;
         }
 
         String dateFormat = getConfig().getString("logging.date-format", "yyyy-MM-dd HH:mm:ss");
-        String format = getConfig().getString("logging.format");
+        String format = commandExecuted ? 
+                       getConfig().getString("logging.format-with-command") :
+                       getConfig().getString("logging.format");
         
         try {
             // 确保latest.log存在
@@ -251,9 +263,14 @@ public final class Sayfuck extends JavaPlugin {
                 .replace("%player%", player.getName())
                 .replace("%message%", message)
                 .replace("%level%", String.valueOf(level))
-                .replace("%count%", String.valueOf(count))
-                .replace("%command%", command)
-                + System.lineSeparator();
+                .replace("%count%", String.valueOf(count));
+
+            // 只有在实际执行命令时才添加命令信息
+            if (commandExecuted) {
+                logEntry = logEntry.replace("%command%", command);
+            }
+            
+            logEntry += System.lineSeparator();
             
             // 追加写入日志
             Files.write(currentLogFile.toPath(), 

@@ -28,5 +28,6 @@ chat:
 # 日志系统配置
 logging:
   enabled: true  # 是否启用日志记录
-  format: "[%date%] 玩家 %player% 发送消息: %message% | 违规等级: %level% | 第%count%次违规 | 执行命令: %command%"
+  format: "[%date%] 玩家 %player% 发送消息: %message% | 违规等级: %level% | 第%count%次违规"
+  format-with-command: "[%date%] 玩家 %player% 发送消息: %message% | 违规等级: %level% | 第%count%次违规 | 触发了警报 | 执行命令: %command%"
   date-format: "yyyy-MM-dd HH:mm:ss"
