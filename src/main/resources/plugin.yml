@@ -1,7 +1,7 @@
 name: sayfuck
 version: '${version}'
 main: byd.cxkcxkckx.sayfuck.Sayfuck
-api-version: '1.20'
+api-version: '1.13'
 description: Chat monitoring plugin using OpenAI API
 
 permissions:
